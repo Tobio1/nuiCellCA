@@ -30,11 +30,13 @@ THRESHOLD_TYPE = cv.CV_THRESH_OTSU
 #cv.CV_THRESH_MASK        cv.CV_THRESH_TOZERO_INV
 
 
+CELL_ANALYZER_LOG_FILE_NAME = 'cell_analyzer.log'
 
 
 
 #filter defines
 MINIMAL_NR_OF_POINTS_PER_CELL_FILTER_VALUE = 7
+MAXIMAL_NR_OF_POINTS_PER_CELL_FILTER_VALUE = 42
 MINIMAL_DEVIATION_OF_CELL_ASPECT_RATIO_IN_PERCENT = 30
 
 
@@ -139,7 +141,7 @@ class CellAnalyzer(object):
 
     def __init__(self):
         print "[i] hello from cell analyzer object"
-
+        self.open_logfile()
 
 
     def load_image(self, image_path, image_type):
@@ -163,7 +165,7 @@ class CellAnalyzer(object):
 
 
 
-    def filter_erode(self, threshold_image):
+    def filter_image_erode(self, threshold_image):
         print '[i] erode filter'
         erode_threshold_image = cv.CreateImage(cv.GetSize(threshold_image), cv.IPL_DEPTH_8U, cv.CV_8UC1)
         cv.Erode(threshold_image, erode_threshold_image, None, ERODER_PATTERN_SIZE)
@@ -171,7 +173,7 @@ class CellAnalyzer(object):
 
 
 
-    def filter_dilate(self, threshold_image):
+    def filter_image_dilate(self, threshold_image):
         print '[i] dilate filter'
         dilate_threshold_image = cv.CreateImage(cv.GetSize(threshold_image), cv.IPL_DEPTH_8U, cv.CV_8UC1)
         cv.Dilate(threshold_image, dilate_threshold_image, None, DILATE_PATTERN_SIZE)
@@ -265,7 +267,8 @@ class CellAnalyzer(object):
     def filter_cells_shape(self, possible_cell_list):
         print '[i] filter cells by shape (circle)'
 
-        filtered_object_list = []
+        filtered_cell_list = []
+        rejected_cell_list = []
         for possible_cell in possible_cell_list:
             x_pos, y_pos, width, height = possible_cell.get_bounding_box()
 
@@ -275,24 +278,37 @@ class CellAnalyzer(object):
                 ratio = float(height) / width
 
             if ((100 - ratio * 100) < MINIMAL_DEVIATION_OF_CELL_ASPECT_RATIO_IN_PERCENT):
-                filtered_object_list.append(possible_cell)
+                filtered_cell_list.append(possible_cell)
+            else:
+                rejected_cell_list.append(possible_cell)
 
-        print ' -> nr of dropped cells by size shape filter (%s percent cell aspect ratio deviation): %d' % (MINIMAL_DEVIATION_OF_CELL_ASPECT_RATIO_IN_PERCENT, (len(possible_cell_list) - len(filtered_object_list)))
-        return filtered_object_list
+        print ' -> nr of dropped cells by size shape filter (%s percent cell aspect ratio deviation): %d' % (MINIMAL_DEVIATION_OF_CELL_ASPECT_RATIO_IN_PERCENT, len(rejected_cell_list))
+        return (filtered_cell_list, rejected_cell_list)
 
 
 
     def filter_cells_size(self, possible_cell_list):
         print '[i] filter cells by size'
 
-        filtered_object_list = []
+        filtered_cell_list = []
+        rejected_cell_list = []
         for possible_cell in possible_cell_list:
-            if (possible_cell.get_nr_of_points() >= MINIMAL_NR_OF_POINTS_PER_CELL_FILTER_VALUE):
-                filtered_object_list.append(possible_cell)
 
-        print ' -> nr of dropped cells by size filter: %d' % (len(possible_cell_list) - len(filtered_object_list))
-        return filtered_object_list
+            #check minimal size
+            if (possible_cell.get_nr_of_points() < MINIMAL_NR_OF_POINTS_PER_CELL_FILTER_VALUE):
+                rejected_cell_list.append(possible_cell)
+                continue
 
+            #check maximal size
+            if (possible_cell.get_nr_of_points() > MAXIMAL_NR_OF_POINTS_PER_CELL_FILTER_VALUE):
+                rejected_cell_list.append(possible_cell)
+                continue
+
+            filtered_cell_list.append(possible_cell)
+
+
+        print ' -> nr of dropped cells by size filter: %d' % (len(possible_cell_list) - len(filtered_cell_list))
+        return (filtered_cell_list, rejected_cell_list)
 
 
     def mark_cells_in_image(self, cell_list, color_image, color):
@@ -322,6 +338,76 @@ class CellAnalyzer(object):
                 cv.Set2D(color_image, height_index, x_pos + width, color)
 
 
+    def open_logfile(self):
+        self.log_file = open(CELL_ANALYZER_LOG_FILE_NAME, 'w')
+
+
+    def close_logfile(self):
+        self.log_file.close()
+
+
+    def append_line_to_log_file(self, log_line):
+        self.log_file.write(log_line + '\n')
+
+
+    def write_log_file_banner(self, banner_string):
+        self.log_file.write('\n*******************************************************\n')
+        self.log_file.write('* %s\n' % (banner_string))
+        self.log_file.write('*******************************************************\n')
+
+
+    def write_log_file_heading(self, heading_string):
+        self.log_file.write('\n== %s ==\n' % (heading_string))
+
+
+    def write_log_file_header(self):
+        self.write_log_file_banner('hello from %s' % (sys.argv[0]))
+
+
+    def write_log_file_footer(self):
+        self.write_log_file_banner('done!')
+
+
+    def write_log_file_analyzer_facts(self, nr_of_elements_found_in_image, nr_of_interesing_elements_found_in_image):
+        self.write_log_file_heading('analyzer facts')
+        self.append_line_to_log_file(' * nr of cells in image:\t%d' % (nr_of_elements_found_in_image));
+        self.append_line_to_log_file(' * nr of interesting cells in image:\t%d' % (nr_of_interesing_elements_found_in_image));
+        self.append_line_to_log_file(' * nr of filtered cells:\t%d' % (nr_of_elements_found_in_image - nr_of_interesing_elements_found_in_image));
+
+        ##TODO: add this stuff to the facts
+        #file name 
+        #used filters
+        #used image filter functions (config)
+        #used threshold alg...
+        #date
+        #script revision
+
+
+    def write_cell_object_list_to_log_file(self, cell_object_list):
+
+        cell_index = 1
+        for cell in cell_object_list:
+            self.write_log_file_heading('details for cell nr %d' % cell_index)
+
+            #cell.get_bounding_box()
+
+            self.append_line_to_log_file(' * nr of points: %d' % cell.get_nr_of_points());
+
+            x_min, x_max = cell.get_point_x_min_max()
+            self.append_line_to_log_file(' * x position limits - min: %d, max: %d' % (x_min, x_max));
+            y_min, y_max = cell.get_point_y_min_max()
+            self.append_line_to_log_file(' * y position limits - min: %d, max: %d' % (y_min, y_max));
+
+            point = cell.get_emphasis()
+            self.append_line_to_log_file(' * emphasis point - x: %d, y: %d' % (point.x, point.y));
+
+            self.append_line_to_log_file('cell point list:');
+            for cell_point_index in range(0, cell.get_nr_of_points()):
+                point = cell.get_point_by_index(cell_point_index)
+                self.append_line_to_log_file(' * point - x: %d, y: %d' % (point.x, point.y));
+
+            cell_index += 1
+
 
     def process_image(self, image_path):
         print '[i] process image %s...' % (image_path)
@@ -332,8 +418,8 @@ class CellAnalyzer(object):
         threshold_image = self.calc_threshold_image(gray_image)
         #horizontal_histogram_image, horizontal_histogram_array = self.calc_horizontal_histogram(threshold_image)
 
-        #erode_threshold_image = self.filter_erode(threshold_image)
-        #dilate_threshold_image = self.filter_dilate(threshold_image)
+        #erode_threshold_image = self.filter_image_erode(threshold_image)
+        #dilate_threshold_image = self.filter_image_dilate(threshold_image)
 
         possible_cell_list = []
         possible_cell_list = self.find_cells_neighbor_alg(threshold_image)
@@ -352,13 +438,28 @@ class CellAnalyzer(object):
         self.draw_cell_bounding_box_in_image(possible_cell_list, color_image, (0, 0, 255))
 
 
-        #filter cells
-        possible_cell_list = self.filter_cells_size(possible_cell_list)
-        possible_cell_list = self.filter_cells_shape(possible_cell_list)
+        #filter cells, clone list for statistics
+        filtered_cell_list = possible_cell_list[:]
+
+        filtered_cell_list, rejected_cells_by_size_filter_list = self.filter_cells_size(filtered_cell_list)
+        filtered_cell_list, rejected_cells_by_shape_filter_list  = self.filter_cells_shape(filtered_cell_list)
 
 
         #mark interesting cells
-        self.mark_cells_in_image(possible_cell_list, color_image, (255, 0, 0))
+        self.mark_cells_in_image(filtered_cell_list, color_image, (255, 0, 0))
+
+
+
+        #write log file
+        print '\n\n[i] write log file...'
+        self.write_log_file_header()
+        self.write_log_file_analyzer_facts(len(possible_cell_list), len(filtered_cell_list))
+
+        self.write_cell_object_list_to_log_file(filtered_cell_list)
+
+        self.write_log_file_footer()
+        self.close_logfile()
+
 
 
 
@@ -378,15 +479,12 @@ class CellAnalyzer(object):
 
 
         print '\n\n[i] final report:'
-        print ' * %d interesting cells found in image (filtered) ' % len(possible_cell_list)
-
+        print ' * %d cells found in image ' % len(possible_cell_list)
+        print ' * %d interesting cells found in image (filtered) ' % len(filtered_cell_list)
 
 
         print '\n\n[i] press any key to exit...'
         cv.WaitKey(0)
-
-
-
 
 
 
