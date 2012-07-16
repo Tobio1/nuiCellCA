@@ -11,8 +11,8 @@ import cell_analyzer_objects
 THRESHOLD_VALUE = 81
 MAX_THRESHOLD_IMAGE_VALUE = 255
 
-ERODER_PATTERN_SIZE = 2
-DILATE_PATTERN_SIZE = 2
+ERODER_PATTERN_SIZE = 1
+DILATE_PATTERN_SIZE = 3
 
 
 #THRESHOLD_TYPE = cv.CV_THRESH_BINARY
@@ -51,14 +51,28 @@ class CellAnalyzerImageProcessing(object):
         return self.load_image(image_path, cv.CV_LOAD_IMAGE_GRAYSCALE)
 
 
-    def filter_image_erode(self, threshold_image):
+    def get_watershed_markers(self, color_image):
+        print '[i] get watershed markers'
+        markers = cv.CreateImage(cv.GetSize(color_image), cv.IPL_DEPTH_32S, 1)
+        cv.Watershed(color_image, markers)
+        return (color_image, markers)
+
+
+    def get_canny_feature(self, threshold_image):
+        print '[i] get canny feature (edge detection)'
+        canny_image = cv.CreateMat(threshold_image.height, threshold_image.width, cv.CV_8UC1)
+        cv.Canny(threshold_image, canny_image, 2, 10)
+        return canny_image
+
+
+    def get_image_erode(self, threshold_image):
         print '[i] erode filter'
         erode_threshold_image = cv.CreateImage(cv.GetSize(threshold_image), cv.IPL_DEPTH_8U, cv.CV_8UC1)
         cv.Erode(threshold_image, erode_threshold_image, None, ERODER_PATTERN_SIZE)
         return erode_threshold_image
 
 
-    def filter_image_dilate(self, threshold_image):
+    def get_image_dilate(self, threshold_image):
         print '[i] dilate filter'
         dilate_threshold_image = cv.CreateImage(cv.GetSize(threshold_image), cv.IPL_DEPTH_8U, cv.CV_8UC1)
         cv.Dilate(threshold_image, dilate_threshold_image, None, DILATE_PATTERN_SIZE)
@@ -96,53 +110,6 @@ class CellAnalyzerImageProcessing(object):
             arraySum += hist_array[i]
 
         return (horizontal_histogram_image, hist_array)
-
-
-    def __find_neighbors(self, height, width, threshold_image, cell_mark_map, cell_object):
-
-        if (cv.Get2D(threshold_image, height, width)[0] == MAX_THRESHOLD_IMAGE_VALUE):
-            cell_mark_map[height][width] = 1
-            cell_object.add_point(cell_analyzer_objects.CellAnalyzerPoint(height, width))
-        else:
-            return
-
-        #down
-        if (height < (threshold_image.height - 1) and cell_mark_map[height + 1][width] == 0):
-            self.__find_neighbors(height + 1, width, threshold_image, cell_mark_map, cell_object)
-
-        #right
-        if (width < (threshold_image.width - 1) and cell_mark_map[height][width + 1] == 0):
-            self.__find_neighbors(height, width + 1, threshold_image, cell_mark_map, cell_object)
-
-        #up
-        if (height > 0 and cell_mark_map[height - 1][width] == 0):
-            self.__find_neighbors(height - 1, width, threshold_image, cell_mark_map, cell_object)
-
-
-
-    def find_cells_neighbor_alg(self, threshold_image):
-        print '[i] try to find cells in image (neighbor alg)'
-
-        cell_object_list = []
-        #cell_mark_map = numpy.zeros((threshold_image.height,threshold_image.width))
-        cell_mark_map =  [[0 for width in range(threshold_image.width)] for height in range(threshold_image.height)]
-
-        for width in range(0, threshold_image.width):
-            for height in range(0, threshold_image.height):
-                if cell_mark_map[height][width] == 1:
-                    #print "continue, already marked in object!"
-                    continue
-
-                cell_object = cell_analyzer_objects.CellAnalyzerObject()
-                self.__find_neighbors(height, width, threshold_image, cell_mark_map, cell_object)
-
-
-                if (cell_object.get_nr_of_points()):
-                    #print "-> found object with %d points!" % cell_object.get_nr_of_points()
-
-                    cell_object_list.append(cell_object)
-
-        return cell_object_list
 
 
     def mark_cells_in_image(self, cell_list, color_image, color):

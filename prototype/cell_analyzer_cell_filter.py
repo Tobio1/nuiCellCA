@@ -12,7 +12,7 @@ MINIMAL_DEVIATION_OF_CELL_ASPECT_RATIO_IN_PERCENT = 30
 
 
 
-class CellAnalyzerFilter(object):
+class CellAnalyzerCellFilter(object):
 
     def filter_cells_shape(self, possible_cell_list):
         print '[i] filter cells by shape (circle)'
