@@ -320,6 +320,13 @@ class CellAnalyzer(object):
                 cv.Set2D(color_image, point.y, point.x, color)
 
 
+    def mark_emphasis_in_image(self, cell_list, color_image, color):
+        print '[i] mark emphasis in image'
+
+        for cell in cell_list:
+            emphasis = cell.get_emphasis()
+            cv.Set2D(color_image, emphasis.y, emphasis.x, color)
+
 
     def draw_cell_bounding_box_in_image(self, cell_list, color_image, color):
         print '[i] draw bounding box for each cell in image'
@@ -336,6 +343,18 @@ class CellAnalyzer(object):
             for height_index in range(y_pos, y_pos + height):
                 cv.Set2D(color_image, height_index, x_pos, color)
                 cv.Set2D(color_image, height_index, x_pos + width, color)
+
+
+    def write_log_file_detailed(self, possible_cell_list, filtered_cell_list):
+        self.write_log_file_header()
+        self.write_log_file_analyzer_facts(len(possible_cell_list), len(filtered_cell_list))
+        self.write_detailed_cell_object_list_to_log_file(filtered_cell_list)
+        self.write_log_file_footer()
+        self.close_logfile()
+
+
+    def write_log_file_simple(self, filtered_cell_list):
+        self.write_simple_cell_object_list_to_log_file(filtered_cell_list)
 
 
     def open_logfile(self):
@@ -383,7 +402,7 @@ class CellAnalyzer(object):
         #script revision
 
 
-    def write_cell_object_list_to_log_file(self, cell_object_list):
+    def write_detailed_cell_object_list_to_log_file(self, cell_object_list):
 
         cell_index = 1
         for cell in cell_object_list:
@@ -405,6 +424,17 @@ class CellAnalyzer(object):
             for cell_point_index in range(0, cell.get_nr_of_points()):
                 point = cell.get_point_by_index(cell_point_index)
                 self.append_line_to_log_file(' * point - x: %d, y: %d' % (point.x, point.y));
+
+            cell_index += 1
+
+
+    def write_simple_cell_object_list_to_log_file(self, cell_object_list):
+        """write simple log entries: cell_id nr_of_points emph_x emph_y
+        """
+        cell_index = 1
+        for cell in cell_object_list:
+            emphasis = cell.get_emphasis()
+            self.append_line_to_log_file(('%d %d %d %d' % (cell_index, cell.get_nr_of_points(), emphasis.x, emphasis.y)));
 
             cell_index += 1
 
@@ -447,20 +477,13 @@ class CellAnalyzer(object):
 
         #mark interesting cells
         self.mark_cells_in_image(filtered_cell_list, color_image, (255, 0, 0))
-
+        self.mark_emphasis_in_image(filtered_cell_list, color_image, (0, 255, 255))
 
 
         #write log file
         print '\n\n[i] write log file...'
-        self.write_log_file_header()
-        self.write_log_file_analyzer_facts(len(possible_cell_list), len(filtered_cell_list))
-
-        self.write_cell_object_list_to_log_file(filtered_cell_list)
-
-        self.write_log_file_footer()
-        self.close_logfile()
-
-
+        self.write_log_file_simple(filtered_cell_list)
+        #self.write_log_file_detailed(possible_cell_list, filtered_cell_list)
 
 
         cv.ShowImage('gray_image', gray_image)
