@@ -11,6 +11,7 @@ import cell_analyzer_logger
 import cell_analyzer_cell_filter
 import cell_analyzer_cell_finder
 import cell_analyzer_image_processing
+import cell_analyzer_cell_statistics
 
 
 #############################################################################
@@ -19,6 +20,7 @@ import cell_analyzer_image_processing
 
 CELL_ANALYZER_SIMPLE_LOG_FILE_NAME = 'cell_analyzer_simple.log'
 CELL_ANALYZER_DETAILED_LOG_FILE_NAME = 'cell_analyzer_detailed.log'
+CELL_ANALYZER_STATISTICS_DIAGRAM_FILE_NAME = 'cell_analyzer_statistics_diagram.png'
 CELL_ANALYZER_LOG_ROOT_FOLDER_NAME='log'
 
 #############################################################################
@@ -95,8 +97,6 @@ class CellAnalyzer(object):
                     #print "    x: %d | y: %d" % (obj.get_point_by_index(point).x, obj.get_point_by_index(point).y)
 
 
-        #mark all recognized cells with a bounding box
-        my_cell_analyzer_image_processing.draw_cell_bounding_box_in_image(possible_cell_list, color_image, (0, 0, 255))
 
 
         #filter cells, clone list for statistics and log
@@ -110,6 +110,15 @@ class CellAnalyzer(object):
         #mark interesting cells
         my_cell_analyzer_image_processing.mark_cells_in_image(filtered_cell_list, color_image, (255, 0, 0))
         my_cell_analyzer_image_processing.mark_emphasis_in_image(filtered_cell_list, color_image, (0, 255, 255))
+
+
+        #mark all recognized cells with a bounding box
+        my_cell_analyzer_image_processing.draw_cell_bounding_box_in_image(possible_cell_list, color_image, (0, 0, 255))
+
+        #do statistics...
+        my_cell_analyzer_cell_statistics = cell_analyzer_cell_statistics.CellAnalyzerCellStatistics(self.log_dir_path)
+        my_cell_analyzer_cell_statistics.draw_cell_size_distribution_diagram(CELL_ANALYZER_STATISTICS_DIAGRAM_FILE_NAME, possible_cell_list)
+
 
 
         #write log file
