@@ -29,7 +29,7 @@ class CellAnalyzerCellFinderDefaultStrategy(object):
         self.image = image
 
 
-    def find_cells(self, image):
+    def find_cells(self):
         print '[i] do nothing with image...'
         cell_object_list = []
         return cell_object_list

@@ -4,6 +4,8 @@
 
 import cv
 import sys
+import os
+import datetime
 
 import cell_analyzer_logger
 import cell_analyzer_cell_filter
@@ -17,6 +19,7 @@ import cell_analyzer_image_processing
 
 CELL_ANALYZER_SIMPLE_LOG_FILE_NAME = 'cell_analyzer_simple.log'
 CELL_ANALYZER_DETAILED_LOG_FILE_NAME = 'cell_analyzer_detailed.log'
+CELL_ANALYZER_LOG_ROOT_FOLDER_NAME='log'
 
 #############################################################################
 
@@ -35,8 +38,27 @@ class CellAnalyzer(object):
         print "[i] bye bye from cell analyzer object"
 
 
+    def prepare_env(self, image_name):
+
+        print '[i] prepare environment...'
+
+        now = datetime.datetime.now()
+        log_dir_name = '%d_%d_%d_%d_%d_%d__image__%s' % (now.year, now.month, now.day, now.hour, now.minute, now.second, image_name.split('/')[-1])
+
+        print '[i] try to create log directory %s...' % ('./' + CELL_ANALYZER_LOG_ROOT_FOLDER_NAME + '/' + log_dir_name)
+        try:
+            os.mkdir('./' + CELL_ANALYZER_LOG_ROOT_FOLDER_NAME + '/' + log_dir_name)
+        except:
+            print '[i] directory %s does already exist...' % (log_dir_name)
+
+        self.log_dir_path = './' + CELL_ANALYZER_LOG_ROOT_FOLDER_NAME + '/' + log_dir_name + '/'
+
+
     def analyze(self, image_path):
         print '[i] process image %s...' % (image_path)
+
+        self.prepare_env(image_name)
+
 
         my_cell_analyzer_image_processing = cell_analyzer_image_processing.CellAnalyzerImageProcessing()
 
@@ -56,9 +78,9 @@ class CellAnalyzer(object):
 
 
         #change cell finder algorithm here
-        #cell_finder = cell_analyzer_cell_finder.CellAnalyzerCellFinderNeighbors(threshold_image)
+        cell_finder = cell_analyzer_cell_finder.CellAnalyzerCellFinderNeighbors(threshold_image)
         #cell_finder = cell_analyzer_cell_finder.CellAnalyzerCellFinderNeighbors(erode_threshold_image)
-        cell_finder = cell_analyzer_cell_finder.CellAnalyzerCellFinderMaxima(color_image)
+        #cell_finder = cell_analyzer_cell_finder.CellAnalyzerCellFinderMaxima(color_image)
 
         possible_cell_list = []
         possible_cell_list = cell_finder.find_cells()
@@ -87,31 +109,31 @@ class CellAnalyzer(object):
 
         #mark interesting cells
         my_cell_analyzer_image_processing.mark_cells_in_image(filtered_cell_list, color_image, (255, 0, 0))
-        #my_cell_analyzer_image_processing.mark_emphasis_in_image(filtered_cell_list, color_image, (0, 255, 255))
+        my_cell_analyzer_image_processing.mark_emphasis_in_image(filtered_cell_list, color_image, (0, 255, 255))
 
 
         #write log file
         print '\n\n[i] write log files...'
-        cell_analyer_logger_detailed = cell_analyzer_logger.CellAnalyzerLogger(CELL_ANALYZER_DETAILED_LOG_FILE_NAME)
+        cell_analyer_logger_detailed = cell_analyzer_logger.CellAnalyzerLogger(self.log_dir_path, CELL_ANALYZER_DETAILED_LOG_FILE_NAME)
         cell_analyer_logger_detailed.write_log_file_detailed(possible_cell_list, filtered_cell_list)
-        cell_analyer_logger_simple = cell_analyzer_logger.CellAnalyzerLogger(CELL_ANALYZER_SIMPLE_LOG_FILE_NAME)
+        cell_analyer_logger_simple = cell_analyzer_logger.CellAnalyzerLogger(self.log_dir_path, CELL_ANALYZER_SIMPLE_LOG_FILE_NAME)
         cell_analyer_logger_simple.write_log_file_simple(filtered_cell_list)
 
 
         cv.ShowImage('gray_image', gray_image)
-        cv.SaveImage('gray_image.png', gray_image)
+        cv.SaveImage(self.log_dir_path + 'gray_image.png', gray_image)
 
         cv.ShowImage('threshold_image', threshold_image);
-        cv.SaveImage('threshold_image.png', threshold_image)
+        cv.SaveImage(self.log_dir_path + 'threshold_image.png', threshold_image)
 
         cv.ShowImage('color_image', color_image)
-        cv.SaveImage('color_image.png', color_image)
+        cv.SaveImage(self.log_dir_path + 'color_image.png', color_image)
 
         cv.ShowImage('canny_feature_threshold_image', canny_feature_threshold_image)
-        cv.SaveImage('canny_feature_threshold_image.png', canny_feature_threshold_image)
+        cv.SaveImage(self.log_dir_path + 'canny_feature_threshold_image.png', canny_feature_threshold_image)
 
         cv.ShowImage('erode_threshold_image', erode_threshold_image)
-        cv.SaveImage('erode_threshold_image.png', erode_threshold_image)
+        cv.SaveImage(self.log_dir_path + 'erode_threshold_image.png', erode_threshold_image)
 
 
         #cv.ShowImage('horizontal_histogram_image', horizontal_histogram_image);

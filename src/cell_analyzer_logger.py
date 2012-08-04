@@ -1,11 +1,9 @@
 
-
 class CellAnalyzerLogger(object):
 
 
-    def __init__(self, log_file_name):
-        self.log_file_name = log_file_name
-        self.open_logfile(self.log_file_name)
+    def __init__(self, log_dir_path, log_file_name):
+        self.open_logfile(log_dir_path, log_file_name)
 
 
     def __del__(self):
@@ -24,8 +22,8 @@ class CellAnalyzerLogger(object):
         self.write_simple_cell_object_list_to_log_file(filtered_cell_list)
 
 
-    def open_logfile(self, log_file_name):
-        self.log_file = open(log_file_name, 'w')
+    def open_logfile(self, log_dir_path, log_file_name):
+        self.log_file = file(log_dir_path + '/' + log_file_name, 'w')
 
 
     def close_logfile(self):
