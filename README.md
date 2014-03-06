@@ -1,4 +1,4 @@
-#### Count white blood cells in an microcope image using python
+#### Count white blood cells in an microscopy image using python
 
 = nuiCellCA =
 
